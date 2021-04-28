@@ -1,0 +1,143 @@
+\documentclass[10pt]{article}
+\oddsidemargin = 0.2in
+\topmargin = -0.5in
+\textwidth 6in
+\textheight 8.5in
+
+\usepackage{graphicx,bm,hyperref,amssymb,amsmath,amsthm}
+
+% -------------------------------------- macros --------------------------
+% general ...
+\newcommand{\bi}{\begin{itemize}}
+\newcommand{\ei}{\end{itemize}}
+\newcommand{\ben}{\begin{enumerate}}
+\newcommand{\een}{\end{enumerate}}
+\newcommand{\be}{\begin{equation}}
+\newcommand{\ee}{\end{equation}}
+\newcommand{\bea}{\begin{eqnarray}} 
+\newcommand{\eea}{\end{eqnarray}}
+\newcommand{\ba}{\begin{align}} 
+\newcommand{\ea}{\end{align}}
+\newcommand{\bse}{\begin{subequations}} 
+\newcommand{\ese}{\end{subequations}}
+\newcommand{\bc}{\begin{center}}
+\newcommand{\ec}{\end{center}}
+\newcommand{\bfi}{\begin{figure}}
+\newcommand{\efi}{\end{figure}}
+\newcommand{\ca}[2]{\caption{#1 \label{#2}}}
+\newcommand{\ig}[2]{\includegraphics[#1]{#2}}
+\newcommand{\bmp}[1]{\begin{minipage}{#1}}
+\newcommand{\emp}{\end{minipage}}
+\newcommand{\pig}[2]{\bmp{#1}\includegraphics[width=#1]{#2}\emp} % mp-fig, nogap
+\newcommand{\bp}{\begin{proof}}
+\newcommand{\ep}{\end{proof}}
+\newcommand{\ie}{{\it i.e.\ }}
+\newcommand{\eg}{{\it e.g.\ }}
+\newcommand{\etal}{{\it et al.\ }}
+\newcommand{\pd}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\pdc}[3]{\left. \frac{\partial #1}{\partial #2}\right|_{#3}}
+\newcommand{\infint}{\int_{-\infty}^{\infty} \!\!}      % infinite integral
+\newcommand{\tbox}[1]{{\mbox{\tiny #1}}}
+\newcommand{\mbf}[1]{{\mathbf #1}}
+\newcommand{\half}{\mbox{\small $\frac{1}{2}$}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\RR}{\mathbb{R}^2}
+\newcommand{\ve}[4]{\left[\begin{array}{r}#1\\#2\\#3\\#4\end{array}\right]}  % 4-col-vec
+\newcommand{\vt}[2]{\left[\begin{array}{r}#1\\#2\end{array}\right]} % 2-col-vec
+\newcommand{\bigO}{{\mathcal O}}
+\newcommand{\qqquad}{\qquad\qquad}
+\newcommand{\qqqquad}{\qqquad\qqquad}
+\DeclareMathOperator{\Span}{Span}
+\DeclareMathOperator{\im}{Im}
+\DeclareMathOperator{\re}{Re}
+\DeclareMathOperator{\vol}{vol}
+\newtheorem{thm}{Theorem}
+\newtheorem{cnj}[thm]{Conjecture}
+\newtheorem{lem}[thm]{Lemma}
+\newtheorem{cor}[thm]{Corollary}
+\newtheorem{pro}[thm]{Proposition}
+\newtheorem{rmk}[thm]{Remark}
+% this work...
+\newcommand{\pO}{{\partial\Omega}}
+\newcommand{\LpO}{\Delta_\pO}
+\newcommand{\eps}{\epsilon}
+\newcommand{\dn}{\partial_n}
+
+
+\begin{document}
+
+\title{Iterative correction in powers of reciprocal diffusivity for linear heat initial boundary value problems}
+
+\author{Alex H. Barnett}
+\date{\today}
+\maketitle
+
+\begin{abstract}
+  Motivated by a cell polarization model of Diegmiller et al (2018)
+  considered in another set of notes,
+  we consider simpler linear IBVPs for the heat equation,
+  in the relevant case of large diffusivity $\kappa$.
+  We sketch a numerical boundary integral method that achieves
+  arbitrary order accuracy in $\eps = 1\/kappa \ll 1$.
+  This replaces history-dependent heat potentials in favor of a
+  the quasi-static solution plus a sequence of corrections each involving
+  one local derivative in time and one static Poisson solve.
+  We show that initial data is irrelevant for times beyond $\bigO(\eps)$.
+  Neglecting discretization errors, the 
+  result matches boundary data exactly but does not exactly solve the heat
+  equation.
+  The latter residual is uniformly $\bigO(\eps^p)$
+  if $p$ correction steps are done, i.e. it gains one order of $\eps$
+  per correction step.
+  Some stability results on IBVP solutions with respect to volume driving
+  are thus needed to bound the solution error.
+
+  We consider the Dirichlet and (trickier) Neumann cases.
+\end{abstract}
+
+\section{Introduction}
+
+We are motivated by a coupled cell polarization problem \cite{diegmiller18}
+where the interior heat equation has Neumann boundary conditions
+(a net flux) given as a nonlinear function of the local interior and surface concentrations.
+Here the bulk diffusivity is at least $10^2$ times larger than the surface diffusivity, giving in interesting quasi-static limit.
+A numerical quasistatic approximate solver exists which
+requires surface diffusion alone.
+To achieve higher accuracy, in general shapes in 3D,
+possibility would be a full heat-equation solver; this would require
+a lot of technology, including short-time quadratures and modal history compression in the style of Greengard, Strain, Li, Wang, etc.
+We present a simpler alternative appropriate for the case of large bulk
+diffusivity.
+We start with simpler linear IBVPs to present the idea.
+
+
+\section{The Dirichlet case}
+
+Given a fixed inverse diffusivity $\eps\ll 1$, and final time $T>0$,
+we wish to efficiently solve the IBVP
+\bea
+\eps\dot{u} - \Delta u &=& 0    \qquad \mbox{ in } \Omega\times (0,T)
+\label{pde}
+\\
+u  &=& f  \qquad \mbox{ on } \pO \times (0,T)
+\label{bc}
+\\
+u(\cdot, 0)    &=&  w \qquad \mbox{ in } \Omega
+\label{ic}
+\eea
+where dot is $\partial/\partial t$, and the given
+time-dependent boundary data is $f(x,t)$, and initial data $w(x)$.
+
+
+
+
+
+
+% BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
+\bibliographystyle{abbrv}
+\bibliography{localrefs}
+\end{document}
+
