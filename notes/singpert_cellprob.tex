@@ -1,0 +1,444 @@
+\documentclass[10pt]{article}
+\oddsidemargin = 0.2in
+\topmargin = -0.5in
+\textwidth 6in
+\textheight 8.5in
+
+\usepackage{graphicx,bm,hyperref,amssymb,amsmath,amsthm}
+
+% -------------------------------------- macros --------------------------
+% general ...
+\newcommand{\bi}{\begin{itemize}}
+\newcommand{\ei}{\end{itemize}}
+\newcommand{\ben}{\begin{enumerate}}
+\newcommand{\een}{\end{enumerate}}
+\newcommand{\be}{\begin{equation}}
+\newcommand{\ee}{\end{equation}}
+\newcommand{\bea}{\begin{eqnarray}} 
+\newcommand{\eea}{\end{eqnarray}}
+\newcommand{\ba}{\begin{align}} 
+\newcommand{\ea}{\end{align}}
+\newcommand{\bse}{\begin{subequations}} 
+\newcommand{\ese}{\end{subequations}}
+\newcommand{\bc}{\begin{center}}
+\newcommand{\ec}{\end{center}}
+\newcommand{\bfi}{\begin{figure}}
+\newcommand{\efi}{\end{figure}}
+\newcommand{\ca}[2]{\caption{#1 \label{#2}}}
+\newcommand{\ig}[2]{\includegraphics[#1]{#2}}
+\newcommand{\bmp}[1]{\begin{minipage}{#1}}
+\newcommand{\emp}{\end{minipage}}
+\newcommand{\pig}[2]{\bmp{#1}\includegraphics[width=#1]{#2}\emp} % mp-fig, nogap
+\newcommand{\bp}{\begin{proof}}
+\newcommand{\ep}{\end{proof}}
+\newcommand{\ie}{{\it i.e.\ }}
+\newcommand{\eg}{{\it e.g.\ }}
+\newcommand{\etal}{{\it et al.\ }}
+\newcommand{\pd}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\pdc}[3]{\left. \frac{\partial #1}{\partial #2}\right|_{#3}}
+\newcommand{\infint}{\int_{-\infty}^{\infty} \!\!}      % infinite integral
+\newcommand{\tbox}[1]{{\mbox{\tiny #1}}}
+\newcommand{\mbf}[1]{{\mathbf #1}}
+\newcommand{\half}{\mbox{\small $\frac{1}{2}$}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\RR}{\mathbb{R}^2}
+\newcommand{\ve}[4]{\left[\begin{array}{r}#1\\#2\\#3\\#4\end{array}\right]}  % 4-col-vec
+\newcommand{\vt}[2]{\left[\begin{array}{r}#1\\#2\end{array}\right]} % 2-col-vec
+\newcommand{\bigO}{{\mathcal O}}
+\newcommand{\qqquad}{\qquad\qquad}
+\newcommand{\qqqquad}{\qqquad\qqquad}
+\DeclareMathOperator{\Span}{Span}
+\DeclareMathOperator{\im}{Im}
+\DeclareMathOperator{\re}{Re}
+\DeclareMathOperator{\vol}{vol}
+\newtheorem{thm}{Theorem}
+\newtheorem{cnj}[thm]{Conjecture}
+\newtheorem{lem}[thm]{Lemma}
+\newtheorem{cor}[thm]{Corollary}
+\newtheorem{pro}[thm]{Proposition}
+\newtheorem{rmk}[thm]{Remark}
+% this work...
+\newcommand{\pO}{{\partial\Omega}}
+\newcommand{\LpO}{\Delta_\pO}
+\newcommand{\eps}{\epsilon}
+\newcommand{\dn}{\partial_n}
+
+
+
+\begin{document}
+
+\title{Asymptotic expansion of a coupled surface-bulk diffusion problem in
+  the reciprocal of the bulk diffusivity}
+
+\author{Alex H. Barnett}
+\date{\today}
+\maketitle
+
+\begin{abstract}
+  In the spherical cell polarization model of Diegmiller et al (2018),
+  the bulk diffusivity $D_C$ is taken as infinite.
+  In fact $D_C$ is large but finite, being $1/\eps \sim 10^2$ times
+  larger than the surface diffusivity.
+  A full numerical solution of the coupled bulk and surface diffusion equations
+  in a general cell geometry---either by finite difference or time-domain
+  boundary integral methods---%
+  would be daunting due to issues of discretization and possible small time steps.
+  Here we apply the classical method of {\em singular perturbation} in powers of $\eps \ll 1$.
+  The biologically relevant outer layer solution to a given order
+  involves only bulk Poisson solves, so might make a more attractive numerical scheme.
+\end{abstract}
+
+\section{Introduction}
+
+Let $\Omega \subset \R^3$ be a smooth bounded domain
+representing a cell, with boundary $\pO$.
+In \cite{diegmiller18} a cell polarization model is presented
+with bulk concentration $C(x,t)$ diffusing in $\Omega$ with
+diffusivity $D_C$,
+coupled to a surface concentration $B(x,t)$ obeying a nonlinear
+reaction-diffusion equation on $\pO$ with much lower diffusivity.
+They consider the special case $\Omega$ a ball; we consider a general shape.
+Non-dimensionalizing their model with length units of order the diameter,
+and time units such that the surface diffusion is unity,
+one gets the IBVP
+\bea
+\dot{B} - \LpO B   &=&  f(B,C)  \qquad \mbox{ on } \pO \times (0,\infty)
+\label{surfpde}
+\\
+\eps \dot{C} - \Delta C   &=& 0   \qqquad \mbox{ in } \Omega \times (0,\infty)
+\label{pde}
+\\
+\dn C  &=& -\eps f(B,C) \qquad \mbox{ on } \pO \times (0,\infty)
+\label{fick}
+\\
+B(x,0) &=& B_i(x)  \qqquad x\in\pO
+\label{Bi}
+\\
+C(x,0) &=& C_i(x)  \qqquad x\in\Omega ~,
+\label{Ci}
+\eea
+where a dot indicates $\partial_t$, and $\dn = \mbf{n}\cdot\nabla$
+where $\mbf{n}$ is the unit surface normal facing out of $\Omega$.
+The given initial data are $B_i$ and $C_i$.
+Here $\eps \ll 1$ is interpreted as $D_B/D_C$ (the ratio of surface
+to bulk diffusivities), and in \cite{diegmiller18} is quoted to be about
+$0.003$.
+Fick's law relating Neumann boundary data to net flux is \eqref{fick}.
+This flux is controlled by $f(B,C)$, a fixed function of two variables,
+giving the local net flux from bulk to surface at a point on $\pO$, in terms of the local surface concentration $B$ and bulk concentration $C$ at that point.
+It is generally nonlinear, the example from \cite{diegmiller18} being
+$$
+f(B,C) = (\beta + \frac{B^\nu}{B^\nu + \Gamma^\nu})C - k_d B~,
+$$
+where the two terms are binding and unbinding rates,
+for constants $\beta$, $\Gamma$, and $k_d$. We will leave $f$ arbitrary.
+
+The total amount of chemical (bulk plus surface) is conserved as follows.
+%as follows \cite{diegmiller18}.
+\begin{pro}[Conservation law]
+  For any $\eps>0$,
+  any solution of the above IBVP obeys
+  \be
+\int_\pO B(\cdot,t) + \int_\Omega C(\cdot,t) \; = \; A ~,  \qquad t>0~,
+\label{cons}
+\ee
+with constant $A:=\int_\pO B_i + \int_\Omega C_i$.
+\label{p:cons}
+\end{pro}
+\begin{proof}
+Via the bulk and surface divergence theorems and the PDEs,
+$$
+\eps \int_\Omega \dot{C} = \int_\Omega \Delta C = \int_\pO \dn C =  -\eps
+\int_\pO f(B,C) = -\eps \int_\pO (\dot{B}-\LpO B) = -\eps \int_\pO \dot{B}~,
+$$
+then one cancels $\eps$.
+\end{proof}
+
+
+% SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
+\section{Singular perturbation and expansions in $\eps$}
+
+For small $\eps$ the above IBVP is a singularly-perturbed problem in time,
+so it is standard to split its analysis into initial layer
+and outer layer solutions
+\cite[Sec.~3.4]{logan} \cite[Sec.~10.2]{linsegel}
+(note we reverse their convention of capital letters for inner and small
+letters for outer).
+We will see that the former is a relaxation phase of $C$ where $B$ is be essentially constant,
+while in the latter $B$ will also change and $C$ stays nearly constant as a function of space.
+Note that only the outer layer solution, to zeroth order in $\eps$, is
+considered in \cite{diegmiller18}.
+
+
+% iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+\subsection{Initial layer solution at zeroth and first order}
+
+Rewriting using the rescaled time $\bar{t}:=t/\eps$, the IBVP
+becomes, using small letters for the inner solution,
+\bea
+\dot{b} - \eps\LpO b   &=&  \eps f(b,c)  \qquad \mbox{ on } \pO \times (0,\infty)
+\label{surfpdel}
+\\
+\dot{c} - \Delta c   &=& 0   \qqquad \mbox{ in } \Omega \times (0,\infty)
+\label{pdel}
+\\
+\dn c  &=& -\eps f(b,c) \qquad \mbox{ on } \pO \times (0,\infty)
+\eea
+with IC \eqref{Bi}--\eqref{Ci} as before.
+
+One can then expand the solution as $b = b_0 + \eps b_1 + \eps^2 b_2 + \dots$,
+etc, and match powers of $\eps$.
+
+At zeroth order \eqref{surfpdel} becomes $\dot{b_0}=0$.
+And \eqref{pdel} with homogeneous Neumann BCs $\dn c_0 = 0$ means that
+the zeroth order inner layer solution is analytic:
+\be
+b_0(x,\bar{t}) = B_i(x)~,
+\quad x\in\pO, \; \bar{t}>0~,
+\qqquad
+c_0(x,\bar{t}) = \bar{C}_i + \sum_{j=1}^\infty \alpha_j e^{-\lambda_j \bar{t}} \psi_j(x) ~,
+ \quad x\in\Omega, \; \bar{t}>0
+\label{BCl0}
+ \ee
+where $\bar{C}_i := (\vol\Omega)^{-1} \int_\Omega C_i$ is the average of the
+initial data,
+and $(\lambda_j, \psi_j)$ are the non-trivial Neumann Laplace eigenpairs
+of $\Omega$, ordered such that $0<\lambda_1\le\lambda_2\le\dots$.
+The coefficients are given by the Euler--Fourier formula
+$\alpha_j = \langle \psi_j,C_i\rangle_{L^2(\Omega)}$, assuming
+$\|\psi_j\|=1$ $\forall j$.
+Note that at this order, $b_0$ is constant, whereas $c_0$ equilibrates on
+a slowest $\bar{t}$ timescale of $1/\lambda_1$, which (unless $\Omega$
+has peculiar features such as narrow necks) is $\bigO(1)$.
+This relaxation time for $C$ will thus be $\bigO(\eps)$
+back in the original variable $t$.
+
+At first order, we get a linear IBVP (recalling time-derivatives
+are with respect to inner time $\bar{t}$),
+\bea
+\dot{b_1}  &=& \LpO c_0 + f(b_0,c_0)  \qquad \mbox{ on } \pO \times (0,\infty)
+\\
+\dot{c_1} - \Delta c_1   &=& 0   \qqqquad \mbox{ in } \Omega \times (0,\infty)
+\\
+\dn c_1  &=& -f(b_0,c_0) \qquad \mbox{ on } \pO \times (0,\infty)
+\\
+b_1(x,0) &=& 0  \qqquad x\in\pO
+\label{Bi1}
+\\
+c_1(x,0) &=& 0  \qqquad x\in\Omega ~,
+\label{Ci1}
+\eea
+where $b_0$ and $c_0$ are given by \eqref{BCl0}.
+The solution is pointwise linear growth of $b_1$, and, independently,
+the linear heat equation for $c_1$ with prescribed
+Neumann boundary driving.
+The nonlinear nature of $f$ has not yet kicked in at these short timescales.
+
+A numerical solution for $c_1$ could either be done by timestepping
+Duhamel ODEs for each above eigenmode, or via an immersed interface finite-difference
+solver or time-domain boundary integral solver.
+We are unsure of the biological relevance of this inner solution,
+especially for the very rapid relaxation times that a spatially-complicated $C_i$ would bring.
+%since $C$ is in practice likely to be equilibrated.
+Hence we move to the outer solution.
+
+
+
+% ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
+\subsection{Outer layer at zeroth order and uniform approximation}
+
+We return to the original time variable $t$,
+and call the zeroth order solution $B_0$ and $C_0$.
+Taking $\eps\to 0^+$ replaces \eqref{pde}--\eqref{fick}
+by a static homogenous Neumann Laplace BVP at each time $t$,
+so that
+\bea
+\dot{B_0} - \LpO B_0   &=&  f(B_0,C_0)  \qquad \mbox{ on } \pO \times (0,\infty)
+\label{surfpde0}
+\\
+\Delta C_0   &=& 0   \qqquad \mbox{ in } \Omega \times (0,\infty)
+\label{pde0}
+\\
+\dn C_0  &=& 0 \qqquad \mbox{ on } \pO \times (0,\infty)
+\label{fick0}
+\eea
+thus $C_0$ is spatially constant at each time $t$.
+However setting $\eps=0$ does {\em not} tell you how this
+constant changes with $t$, since there is no PDE for $C$ involving time!
+For this, curiously, Prop.~\ref{p:cons} (a result for $\eps>0$) is also needed,
+giving the spatially-constant
+\be
+C_0(x,t) = \frac{1}{\vol\Omega}\biggl[ A_0 - \int_\pO B_0(\cdot,t) \biggr]
+~, \qquad x\in\Omega
+\label{C0}
+\ee
+where $A_0$ is some fixed total amount of chemical.
+Substituting into \eqref{surfpde0} leaves a self-contained surface
+PDE for $B_0$ alone,
+\be
+\dot{B_0} - \LpO B_0 =f \biggl( B_0 , \frac{1}{\vol\Omega} \biggl[ A_0 - \int_\pO B_0(\cdot,t) \biggr]
+\biggr)
+\label{B0only}
+\ee
+which is \cite[Eq.~(7)]{diegmiller18} and assumed throughout that paper
+(note they use the symbol ``$C_0$'' to denote our $\frac{A_0}{\vol\Omega}$).
+
+As is standard for outer layer solutions,
+\eqref{surfpde0}--\eqref{fick0} cannot match arbitrary ICs:
+the initial $C_0$ must be constant in space.
+Instead the outer ICs (for $t\to 0^+$) are found by matching
+to the inner layer (for $\bar{t}\to\infty$),
+giving,
+somewhat predictably,
+$C_0(x,0)=\bar{C}_i$ for $x\in\Omega$, and
+$B_0(x,0)=B_i(x)$ for $x\in\pO$.
+As expected, $A_0 = \int_\Omega C_i + \int_\pO B_i$ is the total amount
+of initial chemical.
+The lowest-order uniform asymptotic expansion is then given by adding
+inner and outer solutions and subtracting their common limit,
+giving
+\be
+B^{(u)}(x,t) = B_0(x,t), \quad x\in\pO,\;t>0,
+\qquad
+C^{(u)}(x,t) = C_0(x,t) + \sum_{j=1}^\infty \alpha_j e^{-\lambda_j t/\eps} \psi_j(x),
+\quad x\in\Omega, \; t>0.
+\label{unif0}
+\ee
+This has $\bigO(\eps)$ error uniformly in time, formally justifying
+the approximation in \cite{diegmiller18}.
+
+
+
+\subsection{First order correction to outer layer solution}
+
+Gathering terms in $\eps$, the PDEs and BC for the first order outer correction are
+\bea
+\dot{B_1} - f_B(B_0,C_0) B_1 - \LpO B_1
+&=&  f_C(B_0,C_0) C_1  \qquad \mbox{ on } \pO \times (0,\infty)
+\label{surfpde1}
+\\
+- \Delta C_1   &=& -\dot{C_0}   \qquad\qqquad \mbox{ in } \Omega \times (0,\infty)
+\label{pde1}
+\\
+\dn C_1  &=& -f(B_0,C_0) \qquad \mbox{ on } \pO \times (0,\infty)
+\label{fick1}
+\eea
+Here $f_B$ and $f_C$ are the partials of the fixed function $f$.
+The form is a linear surface reaction-diffusion equation for $B_1$,
+coupled to a family of static Neumann Poisson BVPs for $C_1$ at each $t>0$.
+We leave the ICs open, to be found by matched asymptotics later.
+
+Consider the static Poisson BVP \eqref{pde1}--\eqref{fick1}.
+Its volume forcing $-\dot{C_0}$ is constant in space, by \eqref{C0}.
+This constant is found by using \eqref{C0},
+the surface divergence theorem, then
+\eqref{surfpde0},
+\be
+-(\vol\Omega)\dot{C_0}(x,t) = \int_\pO \dot{B_0}(\cdot, t) =
+\int_\pO [\dot{B_0}(\cdot, t) - \LpO B_0(\cdot,t) ]=
+\int_\pO f(B_0(\cdot,t),C_0(\cdot,t))~, \quad x\in\Omega.
+\label{C0d}
+\ee
+For a solution to the BVP to exist one must have (by the divergence theorem)
+the total volume forcing matching the total outgoing flux,
+i.e.
+$$
+-\int_\Omega \dot{C_0}(\cdot,t) = -\int_\pO \dn C_1(\cdot,t)~,  \quad \forall t>0~.
+$$
+Yet this follows since both sides are equal to 
+$\int_\pO f(B_0(\cdot,t),C_0(\cdot,t))$, by \eqref{C0d} and 
+\eqref{fick1} respectively.
+Thus the BVP is {\em consistent} at each $t>0$.
+It also has a nullspace of constant functions, so which solution
+is selected at each $t>0$ ?
+As with zeroth order, it is not contained in the PDE at this order,
+so it seems we have to bring in
+Prop.~\ref{p:cons} again, giving
+\be
+\int_\Omega C_1(\cdot,t) = -\int_\pO B_1(\cdot,t)~.
+\label{C1}
+\ee
+Suppose that, at a given $t$,
+a Poisson solution to \eqref{pde1}--\eqref{fick1} has been found,
+$\tilde{C}_1(x,t)$.
+Then, writing $C_1 = \tilde{C}_1 + \alpha$,
+by \eqref{C1} one gets, in terms of known quantities at the current $t$,
+$$
+\alpha = -\frac{1}{\vol\Omega} \biggl[
+  \int_\Omega \tilde{C}_1 + \int_\pO B_1
+  \biggr]
+$$
+and then one substitutes this into \eqref{surfpde1} to give
+the right-hand side for the surface PDE to timestep,
+$$
+\dot{B_1} - f_B(B_0,C_0) B_1 - \LpO B_1
+=  f_C(B_0,C_0) (\tilde{C}_1 + \alpha)
+~.
+$$
+Together, the last two equations (which could be combined by eliminating $\alpha$)
+comprise the first-order equivalent of \eqref{B0only}.
+
+A numerical solution of the Poisson BVP at this order is
+quite easy, since a quadratic particular solution can be written down
+(due to the spatially-constant forcing), then the boundary Neumann Laplace
+problem solved via a 2nd-kind BIE.
+A numerical scheme for evolving $B_1$ alongside $B_0$,
+and $C_1$ alongside $C_0$, is thus clear,
+at the effort of doubling the surface variables, and a Laplace Neumann
+BVP solve per timestep.
+
+
+
+%The solution $b=b_0+\eps b_1$ and $c=c_0+\eps c_1$ is already $\bigO(\eps^2)
+%\sim 10^{-5}$
+%accurate, so there is little point in higher-order solutions.
+
+\section{Conclusions}
+
+Using an asymptotic expansion in $\eps$ (essentially the reciprocal bulk diffusivity),
+we wrote an approximate solution to the nonlinear coupled
+interior-boundary cell diffusion IBVP that is uniformly accurate
+to $\bigO(\eps)$, using zeroth-order inner and outer solutions.
+This formally justifies the quasistatic bulk
+approximation in \cite{diegmiller18}.
+The inner layer is biologically irrelevant.
+We also write the first-order outer solution.
+The outer solution (at each order) has a curious extra condition on the change in average value due to the Neumann boundary condition for the coupling.
+
+Numerically, a scheme for the outer solution
+is to solve the zeroth order (i.e. solve for $B_0$ and $C_0$),
+then first order (i.e. solve for $B_1$ and $C_1$, which could be
+done at the same time as zeroth order, at the cost of one Laplace BVP
+solve per timestep),
+then add: $B_0+\eps B_1$ and $C_0 + \eps C_1$ is an outer solution
+with error $\bigO(\eps^2)$.
+
+However, we believe a cleaner and higher-order numerical scheme could be found;
+see other notes.
+This note remains mostly a theoretical foundation.
+
+Future directions:
+\bi
+\item Matched asymptotics including all $\bigO(\eps)$ terms,
+  to give an approximate solution with uniform error $\bigO(\eps^2)$.
+  This will involve integrals over $f(b_0,c_0)$ with $b_0$ const in $\bar{t}$,
+  but $c_0$ sweeping through prescribed values.
+  It is not simple.
+  It is unclear how $c_1$ matches to $C_1$.
+\item Find a numerical method that doesn't require solving the
+  zeroth- and then first-order correction sequentially.
+  Explore 2nd-kind Volterra time-domain BIE here, although the
+  $\eps$-expansion of heat potentials is proving to be a mess.
+\ei
+
+  
+
+
+% BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
+\bibliographystyle{abbrv}
+\bibliography{localrefs}
+\end{document}
+
