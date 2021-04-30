@@ -5,6 +5,7 @@
 \textheight 8.5in
 
 \usepackage{graphicx,bm,hyperref,amssymb,amsmath,amsthm}
+\usepackage{algorithmic,xcolor}
 
 % -------------------------------------- macros --------------------------
 % general ...
@@ -73,19 +74,19 @@
 
 \begin{document}
 
-\title{Iterative correction in powers of reciprocal diffusivity for heat initial boundary value problems}
+\title{Quasistatic correction in powers of reciprocal diffusivity for heat initial boundary value problems}
 
 \author{Alex H. Barnett}
 \date{\today}
 \maketitle
 
 \begin{abstract}
-  Motivated by a cell polarization model of Diegmiller et al (2018)
-  considered in another set of notes,
-  we consider simpler linear IBVPs for the heat equation,
-  in the relevant case of large diffusivity $\kappa$.
+  Motivated by a cell polarization model of Diegmiller et al (2018),
+  we consider IBVPs for the heat equation
+  in the case of large diffusivity $\kappa$.
   We sketch a numerical boundary integral method that achieves
-  arbitrary order accuracy in $\eps = 1/\kappa \ll 1$.
+  arbitrary order accuracy in $\eps = 1/\kappa \ll 1$,
+  exploiting the fact that in this case the heat equation has a short memory.
   This replaces history-dependent heat potentials in favor of a
   the quasi-static solution plus a sequence of corrections each involving
   one local derivative in time and one static Poisson solve.
@@ -100,6 +101,7 @@
 
   We consider the Dirichlet and (trickier) Neumann cases,
   the latter being closer to the cell model.
+  Interior discretization and boundary-only implementations are sketched.
 \end{abstract}
 
 \section{Introduction}
@@ -116,7 +118,9 @@ a lot of technology, including short-time surface quadratures and modal history 
 We present a simpler alternative, which trades time-history for
 a volumetric spatial grid for static spatial solves, achieving high-order
 accuracy for the case of large bulk diffusivity.
-We use simple linear IBVPs to present the idea.
+
+We use simple linear IBVPs to present the idea, for a fixed
+bounded smooth domain $\Omega \in \R^d$, in general dimension $d$.
 
 
 % DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD
@@ -211,7 +215,8 @@ the heat out on a rapid timescale $\bigO(\eps)$, so that it doesn't have time to
 For unit-sized domains $\Omega$, $\lambda_1=\bigO(1)$, and cannot be
 small by the Faber--Krahn inequality.
 
-\subsection{The idea of iterative correction via spatial solves}
+
+\subsection{Correction to arbitrary order via static solves}
 
 Now to the method for the IBVP \eqref{pde}--\eqref{ic}.
 Let $u_1$ solve the quasistatic Laplace problem which sets $\eps=0$
@@ -226,9 +231,9 @@ evaluation time grid).
 It is the Dirichlet equivalent of the quasistatic approximation
 used in \cite{diegmiller18}.
 
-Let $v_1$ solve the static Poisson equation $\Delta v_1 = r_1$ with
-BC $v_1=0$ on $\pO$. Recall that $r_1=\dot u_1$ is a function
-on $\Omega \times (0,T)$, so a fresh Poisson solve is needed for each time $t$.
+Now let $v_1$ solve the static Poisson equation $\Delta v_1 = r_1$ with
+BC $v_1=0$ on $\pO$. Recall that $r_1=\dot u_1$ is a known function
+on $\Omega \times (0,T)$, so a Poisson solve is needed at each time $t$.
 Consider the corrected trial function
 $u_2 := u_1 + \eps v_1$. Its residual cancels by construction as follows,
 $$
@@ -237,100 +242,264 @@ $$
 $$
 Applying Lemma~\ref{l:gstab} to $u_2-u$
 shows that $u_2$ is an $\bigO(\eps^2)$ accurate solution
-to the IBVP. Its additional cost over $u_1$ is one Poisson solve
-and one extra Laplace solve per timestep.
+to the IBVP.
+One way to phrase its extra cost (per timestep) over $u_1$ as
+one Poisson solve plus one time-derivative;
+we study the actual cost of implementations below.
+It formally requires {\em no history information} if $f$, $\dot f$, and
+$\ddot f$ are provided at each desired output time $t$.
 It would get around 5-digit accuracy for the
 $\eps\approx 0.003$ in the cell polarization application in \cite{diegmiller18},
 which is probably adequate.
 
-One may iterate the above, first taking a time-derivative $r_{k} = \dot v_{k-1}$,
-then doing a Poisson solve $\Delta v_k = r_k$
-with $v_k=0$ on $\pO$, for $k=1,\dots,p-1$,
-then summing
+For any target evaluation time $t$, one may iterate the above
+to get any higher-order accuracy $p\ge1$. Here's the formal procedure
+(see below for implementations, which move time-derivatives to different
+places):
+
+\vspace{1ex}
+\colorbox[rgb]{0.9,0.9,0.9}{%
+\begin{minipage}{0.9\textwidth}
+\begin{algorithmic}
+  \STATE let $v_0 := u_1$ be given as the quasistatic Laplace solution to $f$
+  \FOR{$k=1,\dots,p-1$}
+  \STATE take time-derivative of volume function: \; $r_{k} \gets \dot v_{k-1}$
+  \STATE solve Poisson equation with this data: \;\;\; $\Delta v_k = r_k$ in $\Omega$, with $v_k=0$ on $\pO$
+  \ENDFOR
+\end{algorithmic}
+\end{minipage}
+}%
+\vspace{1ex}
+
+Then the trial solution
 \be
-u_p := u_1 + \eps v_1 + \eps^2 v_2 + \dots + \eps^{p-1} v_{p-1}
+u_p := \sum_{k=0}^{p-1} \eps^k v_k
 \label{up}
 \ee
-which has residual $(\eps\dt-\Delta)u_p = \eps^p \dot v_{p-1}$,
-and thus by the Lemma is an $\bigO(\eps^p)$ accurate solution
+matches the BC and IC, and has PDE
+residual $(\eps\dt-\Delta)u_p = \eps^p \dot v_{p-1}$,
+and thus by Lemma~\ref{l:gstab} is an $\bigO(\eps^p)$ accurate solution
 to the IBVP.
-However, all correction operations are local to the current time $t$.
-The total cost is $p-1$ Poisson solves and $p$ Laplace solves per timestep.
+All correction operations are local in time.
 Choosing even $p=4$ would get around 10-digit accuracy for the $\eps$
 mentioned above.
 
+Here are equivalent formulae for the general $p$ case.
 Let $\Lap_D: C(\pO) \to C(\Omega)$ be the solution operator for the Dirichlet
 Laplace equation in $\Omega$, and let $\Delta_0^{-1} : C^k(\Omega) \to
 C^{k+2}(\Omega)$ be the solution operator for the Poisson equation with
 zero Dirichlet boundary data. When acting on functions of
 space and time, each operator is taken to act locally in time
 (i.e., independently on time slices).
-Then another, formal, way to write \eqref{up} is
+Then another formal way to write \eqref{up} is, recalling $u_1=v_0=\Lap_D f$ is
+the quasistatic solution,
 \bea
-u_p &=& u_1 + \eps \Delta_0^{-1} \dot u_1 + \eps^2 \Delta_0^{-2} \ddot u_1 +
-\dots + \eps^{p-1} \Delta_0^{-(p-1)} \dt^{p-1} u_1
+u_p &=& v_0 + \eps \Delta_0^{-1} \dot v_0 + \eps^2 \Delta_0^{-2} \ddot v_0 +
+\dots + \eps^{p-1} \Delta_0^{-(p-1)} \dt^{p-1} v_0
 \\
 &=&
 \Lap_D f + \eps \Delta_0^{-1} \Lap_D \dot f + \ldots
-+ \eps^{p-1} \Delta_0^{-(p-1)} \Lap_D f^{(p-1)}
++ \eps^{p-1} \Delta_0^{-(p-1)} \Lap_D \dt^{(p-1)} f
 ~.
 \label{upformal}
 \eea
+There are many other ways to write it because $\dt$ and spatial solves
+commute.
+
+
+\subsection{Implementation I: interior discretization (sketch)}
+
+For spatially simpler problems,
+keeping in mind $d=2$ or $d=3$ dimensional applications,
+it is practical to fix a
+volume quadrature scheme over $\Omega$ with $\bigO(n^d)$ nodes,
+$n$ being the number of nodes per linear dimension.
+$\pO$ is discretized with $\bigO(n^{d-1})$ nodes.
+For simplicity imagine the boundary data $f(\cdot,t_j)$ is supplied on the boundary nodes on a regular time grid $t_j=j\delta$, $j\in\Z$, $\delta>0$.
+We will not need $f$'s derivatives to be supplied.
+Pick $p$, the desired accuracy order in $\eps$.
+We wish to evaluate the approximate solution on the same time grid.
+
+Our solvers are (we ignore close-evaluation aspects for now):
+\bi
+\item
+  For $\Lap_D$, a boundary-integral (BIE) solver followed by FMM evaluation on
+  interior nodes. Cost $\bigO(n^d)$, dominated by interior evaluation.
+\item
+  For $\Delta_0^{-1}$, FMM evaluation from interior to boundary,
+  then correction by a BIE, followed by box-code plus boundary density
+  evaluation back to interior.
+  Cost $\bigO(n^d)$, dominated by interior-to-interior box-code, I guess.
+\ei
+
+The algorithm exploits that the time-derivatives can be pushed to the end:
+\ben
+\item
+  For each timestep $j$, fill interior data $w_0(\cdot,t_j)=\Lap_D f(\cdot,t_j)$,
+  then for $k=1,\ldots,p-1$,
+  iterate $w_k(\cdot,t_j)=\Delta_0^{-1} w_{k-1}(\cdot,t_j)$, storing them all
+  on interior nodes.
+\item
+  Apply a set of finite-difference rules (eg from reading off the lowest $p$ derivatives of a local Lagrange interpolation)
+  in the time direction, pointwise for each interior node,
+  to compute
+  $v_k(\cdot,t_j) = \dt^k w_k(\cdot,t_j)$, for $k=0,\ldots,p-1$.
+\item
+  Sum the $v_k$ according to \eqref{up} at each node at each timestep.
+\een
+
+The result is the interior solution on the time grid at all interior nodes.
+Multiple $\eps$ choices could be spat out in this way for free
+(in the linear case presented).
+Boundary normal-derivative
+data could be spat out of each Poisson solve too, but the interior
+values are actually needed in all but the last Poisson solve.
+The cost is $\bigO(pn^d)$ (dominated by $p-1$ Poisson solves)
+per timestep.
+Practically, one will sweep through the timesteps in order.
+Since the FD stencil width is of order $p$, at least,
+to read out $p-1$ derivatives, one needs storage $p^2n^d$,
+ie about $p^2$ copies of the volume grid.
+So, $p$ cannot be large.
+If a marching scheme (for a nonlinear coupled problem) were in play
+that generated the data $f$ on the fly,
+a BDF would be needed for step 2 above.
+
+Note that the polyharmonic solves evident in \eqref{upformal}
+are captured by the repeated Poisson solves. The possible $p^2$ cost is
+thus avoided.
+
+Note that digit loss is expected with higher time-derivatives,
+but they are hit by increasing powers of $\eps$, so, I imagine this
+is not a problem.
+I have not thought about the trade-off between order of timestep $\delta$
+accuracy vs $\eps$-correction-order.
+
+{\bf Simplest case: $p=2$.}
+Getting $\bigO(\eps^2)$ accuracy needs one Laplace solve
+and one Poisson solve per timestep, and a FD (or BDF) formula
+to read off $v_1 = \dt w_1$ at all interior nodes.
+If the boundary Neumann data (and no interior solution) is needed,
+the box-code becomes a plain FMM from interior to boundary
+(apart from near-boundary corrections), which will be much faster than
+an interior-interior box code.
+This is quite a reasonable scheme, basically two
+BIE solves plus two interior-to-boundary FMMs per timestep.
 
 
 
-\subsection{Implementation notes}
+\subsection{Implementation II: all on the boundary (sketch)}
 
+Since the heat equation is homogeneous, only boundary values
+(specifically, the complementary data, which is Neumann here)
+are needed to know the interaction with the surface in a practical
+nonlinear coupled problem.
+We can entirely avoid interior nodes,
+at a cost of polyharmonic BIE solves.
 
-*** to do.
-
-$n^3$ interior points. Can avoid?
-
-Each operator in \eqref{upformal} is a routine spatial solve, or a pointwise
-time-derivative.
-
-$\Lap_D(f(\cdot,t))$ may be solved via a 
-a boundary integral equation method on $\pO$.
-To get $\Lap_D(\dt^kf(\cdot,t))$ for $k=1,\dots,p-1$,
-since $\dt$ commutes with $\Lap_D$, a set of $p$ Laplace solutions
-$\Lap_D(f(\cdot,t+\tau_j))$ for a local time grid $\{\tau_j\}$
-could be computed.
-
-$\Delta_0^{-1} r$ may be solved via a 
-a box-code FMM plus the above boundary integral
-equation method, inputting and outputting on volumetric quadrature
-points. Ideally this set of points would be the same.
-
+{\bf Simplest case: $p=2$.}
+Recall $v_0$ solves, at each timestep, $\Delta v_0 = f$ with $v_0=0$ on $\pO$.
+Thus $\dn v_0$ may be computed by a 2nd-kind BIE solver, e.g.\ for large problems in $\bigO(n^{d-1})$ effort via FMM+GMRES.
+Now $v_1$ solves, at each timestep, the biharmonic equation
+\bea
+\Delta^2 v_1 &=& 0 \qquad \mbox{ in } \Omega
+\\
+\Delta v_1 &=& \dot f \qquad \mbox{ on } \pO
+\\
+v_1 &=& 0 \qquad \mbox{ on } \pO~.
+\eea
+This boundary condition is of inhomogeneous Navier type.\footnote{In the 1D case this is physically a rod mounted at points with sprung pivots transmitting given torques at these points, and zero interior loading.}
+Thus $\dn v_1$ may be also computed by a 2nd-kind BIE solver, e.g.\ in $\bigO(n^{d-1})$ effort via FMM plus an iterative solver, but the biharmonic formulation and FMM are more complicated.
 For small problems with a fixed geometry, the boundary solution operators
-could be prestored either in dense or compressed form.
+could be prestored either in dense ($n^{d-1} \le 10^4$)
+or rank-structured compressed
+($n^{d-1} \le 10^6$) form.
+The boundary solution $\dn u_2 := \dn v_0 + \eps \dn v_1$ is then $\bigO(\eps^2)$
+accurate.
 
-Problems of interest would modify IBVP so that $f$ is computed on the
-fly in terms of surface variables and surface limits of $u$ at the current time.
-In this case a BDF formula could be used to extract $\dt^k f$ for $k=1,\dots,p-1$.
+{\bf Higher-order cases.}
+Higher $p$ requires polyharmonic BVP solutions up to order $\Delta^p$.
+Namely, $v_k$ solves, at each timestep,
+\bea
+\Delta^k v_k &=& 0 \qquad \mbox{ in } \Omega
+\\
+\Delta^{k-1} v_k &=& \dt^{k-1} f \qquad \mbox{ on } \pO
+\\
+\Delta^{k-2} v_k &=& 0 \qquad \mbox{ on } \pO
+\\
+\dots &&\dots
+\\
+v_k &=& 0 \qquad \mbox{ on } \pO~.
+\eea
+Even $p=3$ seems impractical in $d=3$ dimensions.
+
+In a nonlinear coupled time-marching setting,
+$\dot f$, $\ddot f$, etc, could be approximated via a low-order
+BDF.
+
+\subsection{Implementation III: eigenmodes all on the boundary (sketch)}
+
+This is far-fetched, and only possible for spatially smooth enough $f$,
+and a fixed shape.
+It will have an expensive precomputation phase,
+but perhaps fast evolution compared to the above,
+especially for larger $\eps$ where a large order $p$ would help.
+Find the boundary data of all Dirichlet eigenmodes $\dn \phi_j$
+for eigenvalues $\lambda_j \le E$, for some convergence parameter $E$.
+Weyl tells us there are $N=\bigO(E^{d/2})$ of them.
+
+*** TO DO
+
+The point is that the Laplace and polyharmonic BVP solves
+are all equally
+simple sums of rank-1 projectors in $L^2(\pO)$, in the eigenbasis.
+No BIE quadratures, close evaluations, or biharmonic are needed.
+
+*** study convergence rate, may be unacceptable.
 
 
 % NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN
 \section{The Neumann case}
 
+For a given flux boundary data $f$ entering the domain,
+Fick's law at the boundary gives the IBVP
 \bea
 \eps\dot{u} - \Delta u &=& 0    \qquad \mbox{ in } \Omega\times (0,T)
 \label{pden}
 \\
-\dn u  &=& f  \qquad \mbox{ on } \pO \times (0,T)
+\eps \dn u  &=& f  \qquad \mbox{ on } \pO \times (0,T)
 \label{bcn}
 \\
 u(\cdot, 0)    &=&  0 \qquad \mbox{ in } \Omega
 \eea
+where $\dn = \mbf{n}\cdot\nabla$ where $\mbf{n}$ is the unit surface
+normal facing out of $\Omega$.
+A crucial difference between this IBVP and the quasistatic case
+is that $f$ need not satisfy zero net flux $\int_\pO f = 0$.
+Indeed the net flux $f$ is $\bigO(1)$, resulting in a solution $u$ that
+is constant to $\bigO(\eps)$, but that constant can change in time
+at an $\bigO(1)$ rate.
+Specifically, for any $\eps>0$,
+\be
+\dt \int_\Omega u = \int_\pO f(\cdot,t)~, \qquad t>0
+\label{cons}
+\ee
+which easily follows from the PDE and the divergence theorem.
 
-*** is the Laplace consistency cond on $f$ enforced at each time?
-Otherwise $u$ shoots up at speed $1/\eps$ which is huge, and
-a smooth solution on unit timescales is impossible.
-In the cell application, consistency applies to order $\eps$.
-A weird set-up.
 
-The zero mode wreaks havoc.
-*** to do.
+%*** is the Laplace consistency cond on $f$ enforced at each time?
+%Otherwise $u$ shoots up at speed $1/\eps$ which is huge, and
+%a smooth solution on unit timescales is impossible.
+%In the cell application, consistency applies to order $\eps$.
+%A weird set-up.
 
+*** TO DO
+
+The zero mode wreaks havoc, but makes getting $\bigO(\eps)$ easier
+than the Dirichlet case since $v_0$ is constant,
+so a particular Poisson solution may be written down, leaving just two Laplace BIE solves!
+
+*** TO DO
 
 
 
@@ -353,13 +522,14 @@ The zero mode wreaks havoc.
 Strangely, if $f(x,\cdot) \in C^\infty((0,T))$,
 taking $p\to\infty$ in \eqref{upformal} gives the formal Neumann series
 \be
-u_\infty := Lap_D f + \eps \Delta_0^{-1} \dt \Lap_D f + \eps^2 \Delta_0^{-2} \dt^2 \Lap_D f + \dots
+u_\infty := \Lap_D f + \eps \Delta_0^{-1} \dt \Lap_D f + \eps^2 \Delta_0^{-2} \dt^2 \Lap_D f + \dots
 = (I - \eps \Delta_0^{-1} \dt)^{-1} \Lap_D f
 \ee
 whose meaning is obscure.
 It is not a mere translation in time since it has no
-reciprocal factorial factors, making its convergence a mystery
-even for small $eps$.
+reciprocal factorial factors. Its convergence a mystery
+even for small $eps$, because $\dt$ is not a bounded operator
+unless we can restrict $f$ to some fancy very smooth function space.
 \item
   I have tried analogous $\eps$-expansions for heat potentials
   to solve the Dirichlet IBVP.
