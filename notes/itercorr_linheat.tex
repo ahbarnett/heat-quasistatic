@@ -68,6 +68,7 @@
 \newcommand{\dn}{\partial_n}
 \newcommand{\dt}{\partial_t}
 \newcommand{\LTO}{{L^2(\Omega)}}
+\newcommand{\LTpO}{{L^2(\pO)}}
 \DeclareMathOperator{\Lap}{Lap}
 
 
@@ -75,6 +76,8 @@
 \begin{document}
 
 \title{Quasistatic correction in powers of reciprocal diffusivity for heat initial boundary value problems}
+% asymptotic expansion?
+
 
 \author{Alex H. Barnett}
 \date{\today}
@@ -84,24 +87,27 @@
   Motivated by a cell polarization model of Diegmiller et al (2018),
   we consider IBVPs for the heat equation
   in the case of large diffusivity $\kappa$.
-  We sketch a numerical boundary integral method that achieves
-  arbitrary order accuracy in $\eps = 1/\kappa \ll 1$,
-  exploiting the fact that in this case the heat equation has a short memory.
+  We sketch a numerical asymptotic method
+  that achieves arbitrary order accuracy in $\eps = 1/\kappa \ll 1$,
+  exploiting the fact that in this case the heat equation has a short memory
+  with timescale $\bigO(\eps)$.
   This replaces history-dependent heat potentials in favor of a
-  the quasi-static solution plus a sequence of corrections each involving
-  one local derivative in time and one static Poisson solve.
-  We show that initial data is irrelevant for times beyond $\bigO(\eps)$.
-  Neglecting discretization errors, the 
-  result matches boundary data exactly but does not exactly solve the PDE.
-  The latter's residual is uniformly $\bigO(\eps^p)$
-  if $p-1$ correction steps are done, i.e.\ it gains one order of $\eps$
-  per correction step.
+  quasi-static solution plus an asymptotic series of corrections
+  involving time-derivatives and elliptic solves.
+  Each correction step buys one order of $\eps$ more accuracy.
+%  We show that initial data is irrelevant for times beyond $\bigO(\eps)$.
+%  Neglecting discretization errors, the 
+%  result matches boundary data exactly but does not exactly solve the PDE.
+%  The latter's residual is uniformly $\bigO(\eps^p)$
+%  if $p-1$ correction steps are done, i.e.\ it gains one order of $\eps$
+%  per correction step.
   Some stability results on IBVP solutions with respect to volume driving
-  are thus needed to convert this to a bound on the solution error.
+  are proven that enable rigorous bounds on the solution error.
 
-  We consider the Dirichlet and (trickier) Neumann cases,
-  the latter being closer to the cell model.
-  Interior discretization and boundary-only implementations are sketched.
+  We consider both Dirichlet and Neumann cases,
+  the latter being related to the cell model.
+  Boundary-integral implementations are sketched, either with or without
+  Interior discretization.
 \end{abstract}
 
 \section{Introduction}
@@ -121,6 +127,9 @@ accuracy for the case of large bulk diffusivity.
 
 We use simple linear IBVPs to present the idea, for a fixed
 bounded smooth domain $\Omega \in \R^d$, in general dimension $d$.
+We start with the Dirichlet case, which is
+analytically simpler, but numerically more complicated,
+than the Neumann case.
 
 
 % DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD
@@ -142,8 +151,7 @@ u(\cdot, 0)    &=&  0 \qquad \mbox{ in } \Omega
 where dot denotes $\partial/\partial t$, and the given
 time-dependent boundary data is $f(x,t)$,
 with the usual compatibility $f=0$ on  $\pO\times\{t=0\}$.
-It is assumed that $f$ is smooth on the unit timescale, in particular
-being oblivious to $\eps$.
+It is assumed that $f$ is smooth on the unit timescale.
 
 Non-zero initial data is not needed here,
 because the effect of any initial data decays away
@@ -161,55 +169,55 @@ Our approximate method will solve \eqref{bc}--\eqref{ic}, but
 not solve \eqref{pde} exactly.
 We need to know how that residual controls the overall solution error.
 
-\begin{lem}[Stability with respect to volume driving]
-  Let $u$ solve the inhomogeneous IBVP
+\begin{lem}[Stability with respect to volume driving, Dirichlet case]  % llllllllllllllllllllll
+  Let $w$ solve the inhomogeneous IBVP
 \bea
-\eps\dot{u} - \Delta u &=& g    \qquad \mbox{ in } \Omega\times (0,T)
+\eps\dot{w} - \Delta w &=& \eps g    \qquad \mbox{ in } \Omega\times (0,T)
 \label{pdeg}
 \\
-u  &=& 0  \qquad \mbox{ on } \pO \times (0,T)
+w  &=& 0  \qquad \mbox{ on } \pO \times (0,T)
 \label{bc0}
 \\
-u(\cdot, 0)    &=&  0 \qquad \mbox{ in } \Omega
+w(\cdot, 0)    &=&  0 \qquad \mbox{ in } \Omega ~.
 \eea
-where $\|g(\cdot,t)\|_\LTO \le M$ for all $t\in(0,T)$.
-Then
+Then, in terms of $\lambda_j$, $j=1,2,\dots$,
+the nondecreasing Dirichlet Laplace eigenvalues of $\Omega$,
 \be
-\|u(\cdot,t)\|_\LTO \;\le\;
-\frac{1}{\lambda_1}\sup_{t\in(0,T)}\|g(\cdot,t)\|_\LTO~.
+\|w(\cdot,t)\|_\LTO \;\le\;
+\frac{\eps}{\lambda_1}\sup_{t\in(0,T)}\|g(\cdot,t)\|_\LTO~.
 \label{gstab}
 \ee
 \label{l:gstab}
 \end{lem}
 \begin{proof}
-We use the energy method.
-Writing $L(t):=\|u(\cdot,t)\|_\LTO$, then by \eqref{pdeg},
-$$
-\frac{\eps}{2}\dt(L^2) = \eps\int_\Omega u \dot u = \int_\Omega
-u\Delta u + \int_\Omega g u
-$$
-The eigenfunction expansion
-$u(\cdot,t) = \sum_{j=1}^\infty a_j \phi_j$
-bounds $\int_\Omega u\Delta u = -\sum_{j=1}^\infty \lambda_1 a_j^2
+We use an energy method.
+Writing $L(t):=\|w(\cdot,t)\|_\LTO$, then using \eqref{pdeg},
+\be
+\frac{\eps}{2}\dt(L^2) = \eps\int_\Omega w \dot w = \int_\Omega
+w\Delta w + \eps \int_\Omega g w
+\label{energy}
+\ee
+The compatible eigenfunction expansion
+$w(\cdot,t) = \sum_{j=1}^\infty a_j \phi_j$
+bounds $\int_\Omega w\Delta w = -\sum_{j=1}^\infty \lambda_j a_j^2
 \le -\lambda_1 L^2$.
-Applying this, and Cauchy--Schwartz to the $gu$ term, with $M:=\sup_{t\in(0,T)}\|g(\cdot,t)\|_\LTO$,
+Applying this, and Cauchy--Schwartz to the $gw$ term, with $M:=\sup_{t\in(0,T)}\|g(\cdot,t)\|_\LTO$,
 we get
 $$
-\eps L\dot L \le -\lambda_1 L^2 + ML~,
+\eps L\dot L \le -\lambda_1 L^2 + \eps ML~,
 $$
 with initial condition $L(0)=0$.
 Thus $L(t)$ is upper-bounded by the solution to the ODE equality,
-which is (by cancelling $L$),
+which is (by cancelling $\eps L$),
 $$
-L(t) = \frac{M}{\lambda_1} (1 - e^{-\lambda_1 t / \eps})~.
+L(t) = \frac{\eps M}{\lambda_1} (1 - e^{-\lambda_1 t / \eps})~.
 $$
-This never exceeds $M/\lambda_1$.
+This never exceeds $\eps M/\lambda_1$.
 \end{proof}
 
-Note that the right-hand side of \eqref{gstab} doesn't involve a factor $1/\eps$,
+Note that the right-hand side of \eqref{gstab} is $\bigO(\eps)$,
 which is surprising because physically the driving
-(power density input)
-in \eqref{pdeg} is $g/\eps$, i.e., large.
+(power density input) in \eqref{pdeg} is $g$, which is $\bigO(1)$.
 However, the diffusivity $1/\eps$ and Dirichlet BCs suck
 the heat out on a rapid timescale $\bigO(\eps)$, so that it doesn't have time to build up in the interior.
 For unit-sized domains $\Omega$, $\lambda_1=\bigO(1)$, and cannot be
@@ -219,11 +227,11 @@ small by the Faber--Krahn inequality.
 \subsection{Correction to arbitrary order via static solves}
 
 Now to the method for the IBVP \eqref{pde}--\eqref{ic}.
-Let $u_1$ solve the quasistatic Laplace problem which sets $\eps=0$
+Let $u_0$ solve the quasistatic Laplace problem which sets $\eps=0$
 in \eqref{pde}.
-Its residual is thus $(\eps\dt-\Delta)u_1 = \eps \dot u_1 =: \eps r_1$.
-So, applying Lemma~\ref{l:gstab} to $u_1-u$
-shows that $u_1$ is an $\bigO(\eps)$ accurate solution
+Its residual is thus $(\eps\dt-\Delta)u_0 = \eps \dot u_0 =: \eps r_1$.
+So, applying Lemma~\ref{l:gstab} to $w= u_0-u$
+shows that $u_0$ is an $\bigO(\eps)$ accurate solution
 to the IBVP.
 Its cost is one Laplace solve per timestep (and since no evolution
 equations are solved, the timestep is dictated only by the user's desired
@@ -232,18 +240,18 @@ It is the Dirichlet equivalent of the quasistatic approximation
 used in \cite{diegmiller18}.
 
 Now let $v_1$ solve the static Poisson equation $\Delta v_1 = r_1$ with
-BC $v_1=0$ on $\pO$. Recall that $r_1=\dot u_1$ is a known function
+BC $v_1=0$ on $\pO$. Recall that $r_1=\dot u_0$ is a known function
 on $\Omega \times (0,T)$, so a Poisson solve is needed at each time $t$.
 Consider the corrected trial function
-$u_2 := u_1 + \eps v_1$. Its residual cancels by construction as follows,
+$u_1 := u_0 + \eps v_1$. Its residual cancels by construction as follows,
 $$
-(\eps\dt-\Delta)(u_1 +\eps v_1) = \eps r_1 - \eps \Delta v_1 +\eps^2 \dot v_1 =
+(\eps\dt-\Delta)(u_0 +\eps v_1) = \eps r_1 - \eps \Delta v_1 +\eps^2 \dot v_1 =
 \eps^2 \dot v_1 =: \eps^2 r_2~.
 $$
-Applying Lemma~\ref{l:gstab} to $u_2-u$
-shows that $u_2$ is an $\bigO(\eps^2)$ accurate solution
+Applying Lemma~\ref{l:gstab} to $w = u_1-u$
+shows that $u_1$ is an $\bigO(\eps^2)$ accurate solution
 to the IBVP.
-One way to phrase its extra cost (per timestep) over $u_1$ as
+One way to phrase its extra cost (per timestep) over $u_0$ as
 one Poisson solve plus one time-derivative;
 we study the actual cost of implementations below.
 It formally requires {\em no history information} if $f$, $\dot f$, and
@@ -261,7 +269,7 @@ places):
 \colorbox[rgb]{0.9,0.9,0.9}{%
 \begin{minipage}{0.9\textwidth}
 \begin{algorithmic}
-  \STATE let $v_0 := u_1$ be given as the quasistatic Laplace solution to $f$
+  \STATE let $v_0 := u_0$ be given as the quasistatic Laplace solution to $f$
   \FOR{$k=1,\dots,p-1$}
   \STATE take time-derivative of volume function: \; $r_{k} \gets \dot v_{k-1}$
   \STATE solve Poisson equation with this data: \;\;\; $\Delta v_k = r_k$ in $\Omega$, with $v_k=0$ on $\pO$
@@ -273,11 +281,11 @@ places):
 
 Then the trial solution
 \be
-u_p := \sum_{k=0}^{p-1} \eps^k v_k
+u_{p-1} := \sum_{k=0}^{p-1} \eps^k v_k
 \label{up}
 \ee
 matches the BC and IC, and has PDE
-residual $(\eps\dt-\Delta)u_p = \eps^p \dot v_{p-1}$,
+residual $(\eps\dt-\Delta)u_{p-1} = \eps^p \dot v_{p-1}$,
 and thus by Lemma~\ref{l:gstab} is an $\bigO(\eps^p)$ accurate solution
 to the IBVP.
 All correction operations are local in time.
@@ -291,15 +299,15 @@ C^{k+2}(\Omega)$ be the solution operator for the Poisson equation with
 zero Dirichlet boundary data. When acting on functions of
 space and time, each operator is taken to act locally in time
 (i.e., independently on time slices).
-Then another formal way to write \eqref{up} is, recalling $u_1=v_0=\Lap_D f$ is
+Then another formal way to write \eqref{up} is, recalling $u_0=v_0=\Lap_D f$ is
 the quasistatic solution,
 \bea
 u_p &=& v_0 + \eps \Delta_0^{-1} \dot v_0 + \eps^2 \Delta_0^{-2} \ddot v_0 +
-\dots + \eps^{p-1} \Delta_0^{-(p-1)} \dt^{p-1} v_0
+\dots + \eps^{p} \Delta_0^{-p} \dt^{p} v_0
 \\
 &=&
 \Lap_D f + \eps \Delta_0^{-1} \Lap_D \dot f + \ldots
-+ \eps^{p-1} \Delta_0^{-(p-1)} \Lap_D \dt^{(p-1)} f
++ \eps^{p} \Delta_0^{-p} \Lap_D \dt^{p} f
 ~.
 \label{upformal}
 \eea
@@ -375,7 +383,7 @@ is not a problem.
 I have not thought about the trade-off between order of timestep $\delta$
 accuracy vs $\eps$-correction-order.
 
-{\bf Simplest case: $p=2$.}
+{\bf Simplest correction: $p=2$.}
 Getting $\bigO(\eps^2)$ accuracy needs one Laplace solve
 and one Poisson solve per timestep, and a FD (or BDF) formula
 to read off $v_1 = \dt w_1$ at all interior nodes.
@@ -397,7 +405,7 @@ nonlinear coupled problem.
 We can entirely avoid interior nodes,
 at a cost of polyharmonic BIE solves.
 
-{\bf Simplest case: $p=2$.}
+{\bf Simplest correction: $p=2$.}
 Recall $v_0$ solves, at each timestep, $\Delta v_0 = f$ with $v_0=0$ on $\pO$.
 Thus $\dn v_0$ may be computed by a 2nd-kind BIE solver, e.g.\ for large problems in $\bigO(n^{d-1})$ effort via FMM+GMRES.
 Now $v_1$ solves, at each timestep, the biharmonic equation
@@ -414,10 +422,10 @@ For small problems with a fixed geometry, the boundary solution operators
 could be prestored either in dense ($n^{d-1} \le 10^4$)
 or rank-structured compressed
 ($n^{d-1} \le 10^6$) form.
-The boundary solution $\dn u_2 := \dn v_0 + \eps \dn v_1$ is then $\bigO(\eps^2)$
+The boundary solution $\dn u_1 := \dn v_0 + \eps \dn v_1$ is then $\bigO(\eps^2)$
 accurate.
 
-{\bf Higher-order cases.}
+{\bf Higher-order corrections.}
 Higher $p$ requires polyharmonic BVP solutions up to order $\Delta^p$.
 Namely, $v_k$ solves, at each timestep,
 \bea
@@ -458,11 +466,12 @@ No BIE quadratures, close evaluations, or biharmonic are needed.
 *** study convergence rate, may be unacceptable.
 
 
+
 % NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN
 \section{The Neumann case}
 
-For a given flux boundary data $f$ entering the domain,
-Fick's law at the boundary gives the IBVP
+For a given flux boundary data $f: \pO\times(0,T)\to\R$ entering the domain,
+we have, by Fick's law at the boundary, the IBVP,
 \bea
 \eps\dot{u} - \Delta u &=& 0    \qquad \mbox{ in } \Omega\times (0,T)
 \label{pden}
@@ -470,36 +479,169 @@ Fick's law at the boundary gives the IBVP
 \dn u  &=& \eps f  \qquad \mbox{ on } \pO \times (0,T)
 \label{bcn}
 \\
-u(\cdot, 0)    &=&  0 \qquad \mbox{ in } \Omega
+u(\cdot, 0)    &=&  0 \qquad \mbox{ in } \Omega~,
+\label{icn}
 \eea
-where $\dn = \mbf{n}\cdot\nabla$ where $\mbf{n}$ is the unit surface
+where $\dn = \mbf{n}\cdot\nabla$ and $\mbf{n}$ is the unit surface
 normal facing out of $\Omega$.
-A crucial difference between this IBVP and the quasistatic case
-is that $f$ need not satisfy zero net flux $\int_\pO f = 0$.
-Indeed the net flux $f$ is $\bigO(1)$, resulting in a solution $u$ that
-is constant to $\bigO(\eps)$, but that constant can change in time
-at an $\bigO(1)$ rate.
-Specifically, for any $\eps>0$,
+$f$ is taken to be sufficiently smooth on the $\bigO(1)$ timescale.
+It is standard that the IBVP has a unique solution
+(*** REF).
+Generally $\int_\pO f \neq 0$ so the total heat content $\int_\Omega u$
+changes in time.
+Specifically, fixing $\eps>0$,
 \be
-\dt \int_\Omega u = \int_\pO f(\cdot,t)~, \qquad t>0
+\dt \int_\Omega u = \int_\pO f(\cdot,t)~, \qquad t\in(0,T)
 \label{cons}
 \ee
-which easily follows from the PDE and the divergence theorem.
+which easily follows from \eqref{pden} and the divergence theorem.
+
+To analyze how close our asymptotic corrections are to the solution, we
+need the following analogue of Lemma~\ref{l:gstab}, in which again $g$ is scaled to correspond to a physical volume heat source.
+
+\begin{lem}[Stability to volume driving, zero mean Neumann case]
+  Let $g: \Omega\times(0,T) \to\R$ be sufficiently smooth
+  volume driving data obeying
+  \be
+  \int_\Omega g(\cdot,t)=0~, \qquad \forall t\in(0,T)
+  \qquad\mbox{zero net heat (ZNH) condition~.}
+  \label{znh}
+  \ee
+  Let $w$ solve the inhomogeneous IBVP
+  \bea
+  \eps\dot{w} - \Delta w &=& \eps g    \qquad \mbox{ in } \Omega\times (0,T)
+  \\
+  \dn w  &=& 0  \qquad \mbox{ on } \pO \times (0,T)
+  \label{bcn0}
+  \\
+  w(\cdot, 0)    &=&  0 \qquad \mbox{ in } \Omega~.
+  \eea
+  Then, letting $\lambda_0^{(N)}<
+  \lambda_1^{(N)} \le \lambda_2^{(N)} \le \dots$
+  be the nondecreasing Neumann Laplace eigenvalues of $\Omega$,
+  \be
+  \|w(\cdot,t)\|_\LTO \;\le\;
+  \frac{\eps}{\lambda_1^{(N)}} \sup_{t\in(0,T)} \|g(\cdot,t)\|_\LTO
+  ~.
+  \label{gstabn}
+  \ee
+  \label{l:gstabn}
+\end{lem}
+\begin{proof}
+  Firstly, \eqref{znh} combined with the divergence theorem
+  and the initial condition implies zero total heat,
+  \be
+  \int_\Omega w(\cdot,t) = 0 ~, \qquad t \in (0,T)~.
+  \label{wzm}
+  \ee
+  The energy formula \eqref{energy} follows from the PDE
+  as in the Dirichlet case.
+  At each $t$, $w$ has the Neumann eigenfunction expansion
+  $w(\cdot,t) = \sum_{j=1}^\infty a_j \phi_j^{(N)}$, where the
+  trivial constant eigenfunction $\phi_0^{(N)}$ term
+  is absent because its coefficient is zero by orthogonality and \eqref{wzm}.
+  Since $w$ has compatible data \eqref{bcn0} and is smooth
+  (since $g$ is smooth),
+  both $w$ and $\Delta w$ have eigenfunction expansions convergent
+  in $\LTO$, so
+  $\int_\Omega w \Delta w = -\sum_{j=1}^\infty \lambda_j^{(N)} a_j^2 \le
+  -\lambda_1^{(N)} L^2$,
+  where, as before, $L(t) := \|w(\cdot,t)\|_\LTO$.
+  The rest of the proof now follows as for Lemma~\ref{l:gstab}
+  with $\lambda_1$ replaced by $\lambda_1^{(N)}$.
+  \end{proof}
+
+This bound of size $\bigO(\eps)$ is somewhat surprising, being 
+much smaller than the input power of $\bigO(1)$;
+it results because the heat rapidly diffuses
+on an $\bigO(\eps)$ timescale.
+Yet, in contrast to the Dirichlet case, no net heat is sucked away, hence
+the need for ZNH.
+
+{\bf Zeroth-order approximation.}
+Returning to the IBVP \eqref{pden}--\eqref{icn},
+define the net flux function of time,
+\be
+f_0(t) := \int_\pO f(\cdot,t)~, \qquad t\in(0,T)~.
+\label{f0}
+\ee
+Define the spatially constant time-varying function
+\be
+v_0(x,t) := \frac{1}{\vol\Omega} \int_0^t f_0(s) ds
+\qquad \forall x \in \Omega, \; t\in(0,T)~,
+\ee
+motivated by integrating \eqref{cons} from time 0 to $t$.
+The zeroth-order solution is simply $u_0:=v_0$.
+Its PDE residual is $(\eps \dt -\Delta)u_0 = \eps f_0(t) / \vol \Omega$,
+yet (unlike the Dirichlet case), it also fails to satisfy the BCs \eqref{bcn} since $\dn u_0 \equiv 0$.
+Its solution error is only $\bigO(\eps)$, but we postpone the proof
+to Prop. *** below,
+since it turns out to piggyback off the following 1st-order solution.
+This corresponds to the quasistatic approximation used by \cite{diegmiller18}.
+
+{\bf First-order correction ($p=2$).}
+Now let $v_1$ solve, at each time $t$, the static Neumann Poisson BVP,
+\bea
+\Delta v_1 &=& \frac{1}{\vol\Omega} f_0 \qquad \mbox{ in } \Omega
+\label{v1pde}
+\\
+\dn v_1 &=& f \qquad \mbox{ on } \pO~,
+\\
+\int_\Omega v_1 &=& 0~.
+\label{v1zm}
+\eea
+This is consistent at each $t$ because the volume integral of the PDE
+right-hand side equals the boundary integral
+(the standard compatibility condition for a Neumann Poisson BVP).
+The usual nullspace of constant functions is reduced to a unique solution
+by the constraint \eqref{v1zm}.
+Then the trial solution
+$u_1 = v_0 + \eps v_1$
+has, by cancellation, a residual $(\eps \dt -\Delta)u_1 = \eps^2 \dot v_1$,
+and satisfies the BC \eqref{bcn} exactly.
+Applying Lemma~\ref{l:gstabn} to $w=u_1 -u$, with $g=\eps \dot v_1$,
+shows that $u_1$ is $\bigO(\eps^2)$ accurate.
+
+{\bf Rigorous error bound for zeroth-order approximation.}
+Finally, applying Lemma~
 
 
-%*** is the Laplace consistency cond on $f$ enforced at each time?
-%Otherwise $u$ shoots up at speed $1/\eps$ which is huge, and
-%a smooth solution on unit timescales is impossible.
-%In the cell application, consistency applies to order $\eps$.
-%A weird set-up.
 
-*** TO DO
+{\bf Higher-order correction.}
+With $v_1$ solved,
+one may continue to arbtrary order using homogeneous Neumann BCs
+from now on.
+For instance, $v_2$ would solve, at each time $t$,
+\bea
+\Delta v_2 &=& \dot v_1 \qquad \mbox{ in } \Omega
+\\
+\dn v_2 &=& 0 \qquad \mbox{ on } \pO~,
+\\
+\int_\Omega v_2 &=& 0~.
+\eea
+This is compatible, by taking the time-derivative of \eqref{v1zm},
+and $u_2=v_0+\eps v_1 + \eps^2 v_2$ would be $\bigO(\eps^3)$
+accurate, by applying Lemma~\ref{l:gstabn} to $w = u_2-u$.
 
-The zero mode wreaks havoc, but makes getting $\bigO(\eps)$ easier
-than the Dirichlet case since $v_0$ is constant,
-so a particular Poisson solution may be written down, leaving just two Laplace BIE solves!
 
-*** TO DO
+
+\subsection{Implementation sketch}
+
+$v_1$ may be solved using an analytic particular solution to \eqref{v1pde},
+such as $(f_0(t)/d \vol\Omega)\,\|x\|^2$, leaving
+only a static Laplace Neumann BVP to solve to correct the boundary data.
+
+Thus only a {\em single} Laplace Neumann BVP per timestep is needed
+to achieve $\bigO(\eps^2)$ accuracy; this is much simpler than
+the Dirichlet case.
+
+TO CONTINUE ***
+
+
+\subsection{Example application to cell polarization nonlinear coupled IBVP}
+
+
+TO DO ***
 
 
 
