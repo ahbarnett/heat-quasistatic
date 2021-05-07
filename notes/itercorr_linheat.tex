@@ -599,11 +599,17 @@ Then the trial solution
 $u_1 = v_0 + \eps v_1$
 has, by cancellation, a residual $(\eps \dt -\Delta)u_1 = \eps^2 \dot v_1$,
 and satisfies the BC \eqref{bcn} exactly.
-Applying Lemma~\ref{l:gstabn} to $w=u_1 -u$, with $g=\eps \dot v_1$,
+Applying Lemma~\ref{l:gstabn} to $w=u_1 -u$, where $g=\eps \dot v_1$,
 shows that $u_1$ is $\bigO(\eps^2)$ accurate.
+For full rigor, this also needs the statement that $\dot v_1$ is
+bounded; for H\"older norms this is provided by applying
+standard Schauder estimates \cite{nardi15} for the Neumann Poisson problem
+with zero mean to \eqref{v1pde}--\eqref{v1zm}, or, specifically
+its time-derivative.
 
 {\bf Rigorous error bound for zeroth-order approximation.}
-Finally, applying Lemma~
+Finally, applying Lemma~\ref{l:gstabn}
+
 
 
 
