@@ -647,6 +647,9 @@ The error analysis easily extends to any fixed asymptotic order.
 $v_1$ may be solved using an analytic particular solution to \eqref{v1pde},
 such as $(f_0(t)/d \vol\Omega)\,\|x\|^2$, leaving
 only a static Laplace Neumann BVP to solve to correct the boundary data.
+Volume integrals needed to impose \eqref{v1zm} can all be pushed
+to the boundary using Green's identities.
+Thus it would be rather easy to test the first-order correction scheme.
 
 Thus only a {\em single} Laplace Neumann BVP per timestep is needed
 to achieve $\bigO(\eps^2)$ accuracy; this is much simpler than
