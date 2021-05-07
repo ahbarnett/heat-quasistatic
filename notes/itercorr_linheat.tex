@@ -574,10 +574,9 @@ motivated by integrating \eqref{cons} from time 0 to $t$.
 The zeroth-order solution is simply $u_0:=v_0$.
 Its PDE residual is $(\eps \dt -\Delta)u_0 = \eps f_0(t) / \vol \Omega$,
 yet (unlike the Dirichlet case), it also fails to satisfy the BCs \eqref{bcn} since $\dn u_0 \equiv 0$.
-Its solution error is only $\bigO(\eps)$, but we postpone the proof
-to Prop. *** below,
-since it turns out to piggyback off the following 1st-order solution.
 This corresponds to the quasistatic approximation used by \cite{diegmiller18}.
+Its solution error is only $\bigO(\eps)$, but we postpone the proof to below,
+since it turns out, rather strangely, to need to piggyback off the next 1st-order construction.
 
 {\bf First-order correction ($p=2$).}
 Now let $v_1$ solve, at each time $t$, the static Neumann Poisson BVP,
@@ -596,26 +595,35 @@ right-hand side equals the boundary integral
 The usual nullspace of constant functions is reduced to a unique solution
 by the constraint \eqref{v1zm}.
 Then the trial solution
-$u_1 = v_0 + \eps v_1$
+$u_1 := v_0 + \eps v_1$
 has, by cancellation, a residual $(\eps \dt -\Delta)u_1 = \eps^2 \dot v_1$,
 and satisfies the BC \eqref{bcn} exactly.
 Applying Lemma~\ref{l:gstabn} to $w=u_1 -u$, where $g=\eps \dot v_1$,
 shows that $u_1$ is $\bigO(\eps^2)$ accurate.
 For full rigor, this also needs the statement that $\dot v_1$ is
 bounded; for H\"older norms this is provided by applying
-standard Schauder estimates \cite{nardi15} for the Neumann Poisson problem
+a Schauder estimate \cite{nardi15} for the Neumann Poisson problem
 with zero mean to \eqref{v1pde}--\eqref{v1zm}, or, specifically
 its time-derivative.
 
 {\bf Rigorous error bound for zeroth-order approximation.}
-Finally, applying Lemma~\ref{l:gstabn}
-
-
+Applying the same Schauder estimate \cite{nardi15}
+to\eqref{v1pde}--\eqref{v1zm}, shows that,
+in H\"older norms,
+$\|v_1\|_\Omega \le C_\Omega \|f\|_\pO$,
+which is $\bigO(1)$ by assumption on the IBVP.
+But, by the triangle inequality $\|u_0-u\| \le \|u_1-u_0\| + \|u_1-u\|
+=\bigO(\eps) + \bigO(\eps^2) = \bigO(\eps)$
+using that $u_1-u_0 = \eps v_1$ and the above error estimate
+on $u_1$.
+Thus finally we have shown that the zeroth-order approximation
+is $\bigO(\eps)$ accurate, with constants depending on $\Omega$ and the
+data $f$.
 
 
 {\bf Higher-order correction.}
 With $v_1$ solved,
-one may continue to arbtrary order using homogeneous Neumann BCs
+one may continue to arbitrary order using homogeneous Neumann BCs
 from now on.
 For instance, $v_2$ would solve, at each time $t$,
 \bea
@@ -625,9 +633,12 @@ For instance, $v_2$ would solve, at each time $t$,
 \\
 \int_\Omega v_2 &=& 0~.
 \eea
-This is compatible, by taking the time-derivative of \eqref{v1zm},
-and $u_2=v_0+\eps v_1 + \eps^2 v_2$ would be $\bigO(\eps^3)$
+This is compatible, by taking the time-derivative of \eqref{v1zm}.
+The approximation $u_2:=v_0+\eps v_1 + \eps^2 v_2$ is be $\bigO(\eps^3)$
 accurate, by applying Lemma~\ref{l:gstabn} to $w = u_2-u$.
+The numerical implementation would involve now a biharmonic solve,
+as in the Dirichlet case one order lower.
+The error analysis easily extends to any fixed asymptotic order.
 
 
 
@@ -676,7 +687,7 @@ u_\infty := \Lap_D f + \eps \Delta_0^{-1} \dt \Lap_D f + \eps^2 \Delta_0^{-2} \d
 whose meaning is obscure.
 It is not a mere translation in time since it has no
 reciprocal factorial factors. Its convergence a mystery
-even for small $eps$, because $\dt$ is not a bounded operator
+even for small $\eps$, because $\dt$ is not a bounded operator
 unless we can restrict $f$ to some fancy very smooth function space.
 \item
   I have tried analogous $\eps$-expansions for heat potentials
