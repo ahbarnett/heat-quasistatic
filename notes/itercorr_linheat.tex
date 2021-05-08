@@ -93,21 +93,24 @@
   with timescale $\bigO(\eps)$.
   This replaces history-dependent heat potentials in favor of a
   quasi-static solution plus an asymptotic series of corrections
-  involving time-derivatives and elliptic solves.
-  Each correction step buys one order of $\eps$ more accuracy.
+  involving time-derivatives and {\em elliptic} solves.
+  Each such correction buys an extra order of $\eps$ accuracy.
 %  We show that initial data is irrelevant for times beyond $\bigO(\eps)$.
 %  Neglecting discretization errors, the 
 %  result matches boundary data exactly but does not exactly solve the PDE.
 %  The latter's residual is uniformly $\bigO(\eps^p)$
 %  if $p-1$ correction steps are done, i.e.\ it gains one order of $\eps$
 %  per correction step.
-  Some stability results on IBVP solutions with respect to volume driving
-  are proven that enable rigorous bounds on the solution error.
 
-  We consider both Dirichlet and Neumann cases,
-  the latter being related to the cell model.
-  Boundary-integral implementations are sketched, either with or without
-  Interior discretization.
+  We consider both Dirichlet and Neumann linear IBVPs.  The latter has
+  peculiarities involving the zero mode, is closely related to the cell
+  model, and requires only {\em one Laplace boundary solve per
+  timestep} to get provable $\bigO(\eps^2)$ accuracy.
+  Boundary integral implementations are sketched, either with or
+  without interior discretization.  (A nonlinear coupled IBVP method
+  needs to be sketched\ldots)  A rigorous error analysis of the order in $\eps$
+  is given for both Dirichlet and Neumann cases,
+  combining energy estimates with estimates on Poisson problems.
 \end{abstract}
 
 \section{Introduction}
@@ -122,14 +125,15 @@ Yet to achieve higher accuracy, in general shapes in 3D,
 a possibility would be a full heat-equation solver; this would require
 a lot of technology, including short-time surface quadratures and modal history compression in the style of Greengard, Strain, Li, Wang, etc.
 We present a simpler alternative, which trades time-history for
-a volumetric spatial grid for static spatial solves, achieving high-order
-accuracy for the case of large bulk diffusivity.
+a sequence of static spatial solves,
+achieving various asymptotic orders with respect to large bulk diffusivity.
 
 We use simple linear IBVPs to present the idea, for a fixed
 bounded smooth domain $\Omega \in \R^d$, in general dimension $d$.
-We start with the Dirichlet case, which is
-analytically simpler, but numerically more complicated,
-than the Neumann case.
+We start with Dirichlet, then give Neumann (which is a linear toy for the
+cell polarization problem).
+The Neumann has tricker analysis, but ends up getting one order
+higher accuracy than the Dirichet case for the same effort.
 
 
 % DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD
@@ -152,6 +156,7 @@ where dot denotes $\partial/\partial t$, and the given
 time-dependent boundary data is $f(x,t)$,
 with the usual compatibility $f=0$ on  $\pO\times\{t=0\}$.
 It is assumed that $f$ is smooth on the unit timescale.
+It is standard that the IBVP has a unique solution.
 
 Non-zero initial data is not needed here,
 because the effect of any initial data decays away
@@ -165,9 +170,9 @@ $$
 satisfies \eqref{pde} with zero BCs and initial data $u(\cdot,0)=w$,
 for coefficients $c_j = \langle \phi_j, w \rangle$.
 
-Our approximate method will solve \eqref{bc}--\eqref{ic}, but
-not solve \eqref{pde} exactly.
-We need to know how that residual controls the overall solution error.
+Our asymptotic method will solve \eqref{bc}--\eqref{ic}, but
+only solve \eqref{pde} to various orders in $\eps$.
+We need to know how this PDE residual controls the overall solution error.
 
 \begin{lem}[Stability with respect to volume driving, Dirichlet case]  % llllllllllllllllllllll
   Let $w$ solve the inhomogeneous IBVP
@@ -230,7 +235,9 @@ Now to the method for the IBVP \eqref{pde}--\eqref{ic}.
 Let $u_0$ solve the quasistatic Laplace problem which sets $\eps=0$
 in \eqref{pde}.
 Its residual is thus $(\eps\dt-\Delta)u_0 = \eps \dot u_0 =: \eps r_1$.
-So, applying Lemma~\ref{l:gstab} to $w= u_0-u$
+So, applying Lemma~\ref{l:gstab} to $w= u_0-u$,
+noting that $\dot u$ satisfies the Laplace BVP for $\dot f$ thus is controlled
+in magnitude by it,
 shows that $u_0$ is an $\bigO(\eps)$ accurate solution
 to the IBVP.
 Its cost is one Laplace solve per timestep (and since no evolution
@@ -470,7 +477,7 @@ No BIE quadratures, close evaluations, or biharmonic are needed.
 % NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN
 \section{The Neumann case}
 
-For a given flux boundary data $f: \pO\times(0,T)\to\R$ entering the domain,
+For a given physical flux boundary data $f: \pO\times(0,T)\to\R$ entering the domain,
 we have, by Fick's law at the boundary, the IBVP,
 \bea
 \eps\dot{u} - \Delta u &=& 0    \qquad \mbox{ in } \Omega\times (0,T)
@@ -484,17 +491,20 @@ u(\cdot, 0)    &=&  0 \qquad \mbox{ in } \Omega~,
 \eea
 where $\dn = \mbf{n}\cdot\nabla$ and $\mbf{n}$ is the unit surface
 normal facing out of $\Omega$.
-$f$ is taken to be sufficiently smooth on the $\bigO(1)$ timescale.
-It is standard that the IBVP has a unique solution
-(*** REF).
+$f(x,t)$ is taken to be sufficiently smooth in $x$ and $t$.
+It is standard that the IBVP has a unique solution.
 Generally $\int_\pO f \neq 0$ so the total heat content $\int_\Omega u$
-changes in time.
+changes at a $\bigO(1)$ rate, independent of $\eps$.
 Specifically, fixing $\eps>0$,
 \be
 \dt \int_\Omega u = \int_\pO f(\cdot,t)~, \qquad t\in(0,T)
 \label{cons}
 \ee
 which easily follows from \eqref{pden} and the divergence theorem.
+Nonzero initial conditions for \eqref{icn} would be easy to include,
+since they can be replaced by their spatial average after $t>\bigO(\eps)$
+because all fluctuations decay exponentially (see other singular perturbation
+notes).
 
 To analyze how close our asymptotic corrections are to the solution, we
 need the following analogue of Lemma~\ref{l:gstab}, in which again $g$ is scaled to correspond to a physical volume heat source.
@@ -573,10 +583,12 @@ v_0(x,t) := \frac{1}{\vol\Omega} \int_0^t f_0(s) ds
 motivated by integrating \eqref{cons} from time 0 to $t$.
 The zeroth-order solution is simply $u_0:=v_0$.
 Its PDE residual is $(\eps \dt -\Delta)u_0 = \eps f_0(t) / \vol \Omega$,
-yet (unlike the Dirichlet case), it also fails to satisfy the BCs \eqref{bcn} since $\dn u_0 \equiv 0$.
+yet (unlike the Dirichlet case), it also fails to satisfy the BCs \eqref{bcn}
+any better than a trivial guess, since $\dn u_0 \equiv 0$.
 This corresponds to the quasistatic approximation used by \cite{diegmiller18}.
-Its solution error is only $\bigO(\eps)$, but we postpone the proof to below,
-since it turns out, rather strangely, to need to piggyback off the next 1st-order construction.
+Despite failing to match the BCs at all, its solution error is actually $\bigO(\eps)$.
+We postpone that proof to below, since it turns out rather strangely to
+piggyback off of the following 1st-order construction.
 
 {\bf First-order correction ($p=2$).}
 Now let $v_1$ solve, at each time $t$, the static Neumann Poisson BVP,
@@ -663,6 +675,11 @@ TO CONTINUE ***
 
 TO DO ***
 
+(Write an $\bigO(\delta t)$ fully implicit scheme combining
+the surface solve and the interior Laplace solve,
+using the notation of the outer solution in the other set of notes on
+singular perturbation.)
+
 
 
 
@@ -698,9 +715,10 @@ unless we can restrict $f$ to some fancy very smooth function space.
   However, the mass of the algebraic tails in time decays like
   fractional powers of $\eps$, and it is not obvious how to
   write the result as a perturbation from the quasistatic solution $u_1$.
-  I am far from a numerical method there. In contrast the above seems
-  quite simple.
-  \ei
+  I am far from a numerical method there. In contrast, the above seems
+  more natural since it exploits the short $\bigO(\eps)$ memory of
+  the domain problem.
+\ei
 
 
 % BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
